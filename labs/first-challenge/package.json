@@ -1,0 +1,13 @@
+{
+  "name": "first-challenge",
+  "version": "1.0.0",
+  "description": "First Code Challenge ====================",
+  "main": "script.js",
+  "scripts": {
+    "start": "node script.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Erick Mendoza",
+  "license": "ISC",
+  "dependencies": {}
+}

@@ -12,31 +12,16 @@ This is the first challenge in your Advanced Programming Class.
 Build Requirements
 ------------------
 ```
-# Build Requirements here
+# Install Nodejs https://nodejs.org/en/
+# Optional use a web browser console copy and paste the code with the test cases.
 ```
-
-
-How to build
-------------
-```
-# instructions here
-```
-
 
 How to Run
 ----------
 ```
-# instructions here
+# After installing 
+# Run node script.js in the command line or use Make
 ```
-
-
-General instructions
---------------------
-1. Don't forget to sync first with the base [master](https://github.com/CodersSquad/ap-labs) branch.
-2. Push your code to your personal fork.
-3. Don't forget to update this `README.md` file with your project's `requirements`, `build` and `how to run` sections.
-4. Have fun and don't forget the next section.
-
 
 How to submit your work
 =======================
