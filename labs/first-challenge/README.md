@@ -22,10 +22,3 @@ How to Run
 # After installing 
 # Run node script.js in the command line or use Make
 ```
-
-How to submit your work
-=======================
-```
-GITHUB_USER=<your_github_user>  make submit
-```
-More details at: [Classify API](../../classify.md)
