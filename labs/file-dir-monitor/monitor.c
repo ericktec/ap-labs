@@ -14,13 +14,12 @@ int inotifyFd;
 char *rootPath;
 char *oldPath;
 int rootId;
-
+char *newPath;
 
 void handler(struct inotify_event *event);
 int createWatcher(char *path);
 int addFolder(const char *fpath, const struct stat *sb, int typeflag);
-void updateFolder(char *oldPath, char* newPath);
-
+void updateFolder(char *oldPath, char *newPath);
 
 struct Watchers
 {
@@ -29,7 +28,8 @@ struct Watchers
     UT_hash_handle hh;
 };
 
-struct FTW {
+struct FTW
+{
     int base;
     int level;
 };
@@ -60,7 +60,6 @@ int main(int argc, char *argv[])
 
     infof("Starting File/Directory Monitor on %s \n -----------------------------------------------------\n", argv[1]);
     rootPath = argv[1];
-    oldPath = rootPath;
     wd = inotify_add_watch(inotifyFd, argv[1], IN_CREATE | IN_DELETE | IN_MOVED_FROM | IN_MOVED_TO);
     if (wd == -1)
     {
@@ -79,12 +78,11 @@ int main(int argc, char *argv[])
     flag->base = 0;
     flag->level = 1;
 
-    if (nftw(argv[1], addFolder, 20, NULL,  flag) == -1)
+    if (nftw(argv[1], addFolder, 20, NULL, flag) == -1)
     {
         errorf("Something went wrong while creating the watcher.\n");
     }
 
-    
     for (;;)
     { /* Read events forever */
         numRead = read(inotifyFd, buf, BUF_LEN);
@@ -113,28 +111,34 @@ int main(int argc, char *argv[])
 
 void handler(struct inotify_event *event)
 {
-    
+
     if (event->mask & IN_CREATE)
     {
         struct Watchers *s;
         HASH_FIND_INT(watchers, &event->wd, s);
         if (event->mask & IN_ISDIR)
         {
-            char *path = s->path;
-            strcat(path, "/");
-            strcat(path, event->name);
+            char *path = malloc(strlen(rootPath) + strlen(event->name) + 1);
+            sprintf(path, "%s/%s", rootPath, event->name);
             int wd = createWatcher(path);
-            struct Watchers *n;
-
-            n = malloc(sizeof(struct Watchers));
-            n->id = wd;
-            strcpy(n->path, path);
-            HASH_ADD_INT(watchers, id, n);
-            infof("- [Directory - Create] - %s\n", path);
+            free(path);
+            if (wd > 0)
+            {
+                struct Watchers *n;
+                n = malloc(sizeof(struct Watchers));
+                n->id = wd;
+                strcpy(n->path, event->name);
+                HASH_ADD_INT(watchers, id, n);
+                infof("- [Directory - Create] - /%s\n", event->name);
+            }
+            else
+            {
+                infof("- [Directory - Create] - /%s /%s\n", s->path, event->name);
+            }
         }
         else
         {
-            
+
             if (rootId == s->id)
             {
                 infof("- [File - Create] - %s\n", event->name);
@@ -151,7 +155,7 @@ void handler(struct inotify_event *event)
         {
             struct Watchers *s;
             HASH_FIND_INT(watchers, &event->wd, s);
-            infof("- [Directory - Removal] - %s\n", event->name);
+            infof("- [Directory - Removal] - /%s\n", event->name);
             if (rootId != s->id)
             {
                 inotify_rm_watch(inotifyFd, event->wd);
@@ -166,17 +170,22 @@ void handler(struct inotify_event *event)
     {
         struct Watchers *s;
         HASH_FIND_INT(watchers, &event->wd, s);
-        
+
         if (event->mask & IN_ISDIR)
         {
-            infof("- [Directory Rename] %s/ %s", s->path,event->name);
-            strcpy(oldPath, s->path);
-            strcat(oldPath, "/");
-            strcat(oldPath, event->name);
+            infof("- [Directory Rename]/%s", event->name);
+            oldPath = event->name;
         }
         else
         {
-            infof("- [File Rename] %s/ %s", s->path,event->name);
+            if (event->wd != rootId)
+            {
+                infof("- [File Rename] %s/ %s", s->path, event->name);
+            }
+            else
+            {
+                infof("- [File Rename] %s", event->name);
+            }
         }
     }
     if (event->mask & IN_MOVED_TO)
@@ -185,15 +194,20 @@ void handler(struct inotify_event *event)
         HASH_FIND_INT(watchers, &event->wd, s);
         if (event->mask & IN_ISDIR)
         {
-            char *newPath = s->path;
-            strcat(newPath, "/");
-            strcat(newPath, event->name);
-            warnf("Old path %s, newPath %s current id %d\n", oldPath, newPath, event->wd);
-            updateFolder(oldPath, newPath);
-            strcpy(oldPath, "");
+            updateFolder(oldPath, event->name);
+            infof("-> %s \n", event->name);
         }
-
-        infof("-> %s/ %s\n", s->path, event->name);
+        else
+        {
+            if (event->wd != rootId)
+            {
+                infof("-> %s/ %s\n", s->path, event->name);
+            }
+            else
+            {
+                infof("-> %s\n", event->name);
+            }
+        }
     }
 }
 
@@ -208,27 +222,39 @@ int addFolder(const char *fpath, const struct stat *sb, int typeflag)
     if (typeflag == FTW_D)
     {
         int wd = createWatcher(fpath);
-        if(wd == rootId){
+        if (wd == rootId)
+        {
             return 0;
         }
         struct Watchers *s;
+        char *token = strtok(fpath, "/");
+        char *tokenTemp = token;
+        // loop through the string to extract all other tokens
+        while (token != NULL)
+        {
+            tokenTemp = token;
+            token = strtok(NULL, "/");
+        }
         s = malloc(sizeof(struct Watchers));
         s->id = wd;
-        strcpy(s->path, fpath);
+        if(tokenTemp != NULL){
+            strcpy(s->path, tokenTemp);
+        }else{
+            strcpy(s->path, fpath);
+        }
         HASH_ADD_INT(watchers, id, s);
     }
     return 0;
 }
 
-
-void updateFolder(char *oldPath, char* newPath) {
+void updateFolder(char *oldPath, char *newPath)
+{
     struct Watchers *s;
-
-    for(s=watchers; s != NULL; s = s->hh.next) {
-        if(strcmp(oldPath, s->path) == 0)
+    for (s = watchers; s != NULL; s = s->hh.next)
+    {
+        if (strcmp(oldPath, s->path) == 0 && s->id != rootId)
         {
             strcpy(s->path, newPath);
-            warnf("sucess");
         }
     }
 }
