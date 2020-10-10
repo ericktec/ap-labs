@@ -2,6 +2,7 @@
 #include <inttypes.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include "logger.h"
 #include <signal.h>
 
@@ -27,14 +28,14 @@ int base64encode(const void *data_buf, size_t dataLength, char *result, size_t r
 int base64decode(char *in, size_t inLen, unsigned char *out, size_t *outLen);
 void sigHandler(int sign);
 
-long porcetage = 0;
-long filesize = 1;
+long double progress = 0;
+long double filesize = 1;
 
 int main(int argc, char **argv)
 {
     if (argc < 3)
     {
-        return errorf("Wrong input, please introduce the flag --encode || --decode and the file's name");
+        return errorf("Wrong input, please introduce the flag --encode || --decode and the file's name\n");
     }
     signal(SIGINT, sigHandler);
     signal(SIGUSR1, sigHandler);
@@ -74,7 +75,6 @@ int main(int argc, char **argv)
         return errorf("Wrong flag \n");
     }
     
-
     return 0;
 }
 
@@ -89,6 +89,7 @@ char *readcontent(char *filename)
     {
         fseek(fp, 0, SEEK_END);
         fsize = ftell(fp);
+        filesize = fsize;
         rewind(fp);
 
         fcontent = (char *)malloc(sizeof(char) * fsize);
@@ -125,11 +126,11 @@ int base64encode(const void *data_buf, size_t dataLength, char *result, size_t r
     uint32_t n = 0;
     int padCount = dataLength % 3;
     uint8_t n0, n1, n2, n3;
-    filesize = dataLength;
 
     for (x = 0; x < dataLength; x += 3)
     {
-        porcetage = x;
+        
+        progress=x;
 
         n = ((uint32_t)data[x]) << 16; 
 
@@ -167,6 +168,7 @@ int base64encode(const void *data_buf, size_t dataLength, char *result, size_t r
                 return 1; 
             result[resultIndex++] = base64chars[n3];
         }
+        //sleep(0.5);  // Used just to have time to send the signals using another terminal
     }
 
 
@@ -191,10 +193,9 @@ int base64decode(char *in, size_t inLen, unsigned char *out, size_t *outLen)
     char iter = 0;
     uint32_t buf = 0;
     size_t len = 0;
-    filesize = inLen;
     while (in < end)
     {
-        porcetage = in;
+        progress +=1;
         unsigned char c = d[*in++];
 
         switch (c)
@@ -221,6 +222,7 @@ int base64decode(char *in, size_t inLen, unsigned char *out, size_t *outLen)
                 iter = 0;
             }
         }
+        // sleep(0.5);  // Used just to have time to send the signals using another terminal
     }
 
     if (iter == 3)
@@ -243,5 +245,5 @@ int base64decode(char *in, size_t inLen, unsigned char *out, size_t *outLen)
 
 void sigHandler(int sign)
 {
-    infof("Progress %.2f\n",porcetage/filesize);
+    infof("Progress %Lf % \n",(progress/filesize)*100);
 }
