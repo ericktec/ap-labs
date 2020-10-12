@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include "logger.h"
 #include <signal.h>
+#include "math.h"
 
 #define WHITESPACE 64
 #define EQUALS 65
@@ -27,9 +28,10 @@ char *readcontent(char *filename);
 int base64encode(const void *data_buf, size_t dataLength, char *result, size_t resultSize);
 int base64decode(char *in, size_t inLen, unsigned char *out, size_t *outLen);
 void sigHandler(int sign);
+int writeContent(char *filename, char *content);
 
-long double progress = 0;
-long double filesize = 1;
+unsigned long progress = 0;
+unsigned long filesize = 1;
 
 int main(int argc, char **argv)
 {
@@ -47,9 +49,9 @@ int main(int argc, char **argv)
         {
             return errorf("Error reading the file\n");
         }
-        int size = 8 * strlen(content);
+        unsigned long size = 8 * ceil(filesize/3);
         char *decoded = malloc(size);
-        base64decode(content, strlen(content), decoded, &size);
+        base64decode(content, filesize, decoded, &size);
         char *newFileName = argv[2];
         newFileName[strlen(newFileName)-4] = '\0';
         strcat(newFileName, "-decoded.txt");
@@ -62,9 +64,9 @@ int main(int argc, char **argv)
         {
             return errorf("Error reading the file\n");
         }
-        int size = 8 * strlen(content);
+        unsigned long size = 8 * ceil(filesize/3);
         char *encode = malloc(size);
-        base64encode(content, strlen(content), encode, size);
+        base64encode(content, filesize, encode, size);
         char *newFileName = argv[2];
         newFileName[strlen(newFileName)-4] = '\0';
         strcat(newFileName, "-encoded.txt");
@@ -80,21 +82,20 @@ int main(int argc, char **argv)
 
 char *readcontent(char *filename)
 {
-    char *fcontent = NULL;
-    int fsize = 0;
+    char *fcontent;
+    unsigned long fsize = 0;
     FILE *fp;
 
     fp = fopen(filename, "r");
     if (fp)
     {
-        fseek(fp, 0, SEEK_END);
-        fsize = ftell(fp);
+        fseeko(fp, 0, SEEK_END);
+        fsize = ftello(fp);
         filesize = fsize;
-        rewind(fp);
+        fseeko(fp, 0, SEEK_SET);
 
-        fcontent = (char *)malloc(sizeof(char) * fsize);
+        fcontent = malloc(filesize+1);
         fread(fcontent, 1, fsize, fp);
-
         fclose(fp);
     }
     return fcontent;
@@ -103,7 +104,7 @@ char *readcontent(char *filename)
 int writeContent(char *filename, char *content)
 {
     FILE *fp;
-    int i;
+
 
     fp = fopen(filename, "w");
     if (fp == NULL)
@@ -130,7 +131,7 @@ int base64encode(const void *data_buf, size_t dataLength, char *result, size_t r
     for (x = 0; x < dataLength; x += 3)
     {
         
-        progress=x;
+        progress = x;
 
         n = ((uint32_t)data[x]) << 16; 
 
@@ -195,7 +196,7 @@ int base64decode(char *in, size_t inLen, unsigned char *out, size_t *outLen)
     size_t len = 0;
     while (in < end)
     {
-        progress +=1;
+        progress ++;
         unsigned char c = d[*in++];
 
         switch (c)
@@ -245,5 +246,5 @@ int base64decode(char *in, size_t inLen, unsigned char *out, size_t *outLen)
 
 void sigHandler(int sign)
 {
-    infof("Progress %Lf % \n",(progress/filesize)*100);
+    infof("Progress  %ld / %ld porcentage %ld%% \n", progress, filesize, progress*100/filesize);
 }
