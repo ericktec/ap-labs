@@ -47,7 +47,7 @@ int main(int argc, char **argv)
         {
             return errorf("Error reading the file\n");
         }
-        int size = 8 * ceil(strlen(content) / 3);
+        int size = 8 * strlen(content);
         char *decoded = malloc(size);
         base64decode(content, strlen(content), decoded, &size);
         char *newFileName = argv[2];
@@ -62,7 +62,7 @@ int main(int argc, char **argv)
         {
             return errorf("Error reading the file\n");
         }
-        int size = 8 * ceil(strlen(content) / 3);
+        int size = 8 * strlen(content);
         char *encode = malloc(size);
         base64encode(content, strlen(content), encode, size);
         char *newFileName = argv[2];
@@ -168,7 +168,7 @@ int base64encode(const void *data_buf, size_t dataLength, char *result, size_t r
                 return 1; 
             result[resultIndex++] = base64chars[n3];
         }
-        //sleep(0.5);  // Used just to have time to send the signals using another terminal
+        // sleep(0.5);  // Used just to have time to send the signals using another terminal
     }
 
 
