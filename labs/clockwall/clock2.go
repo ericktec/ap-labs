@@ -2,9 +2,11 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"net"
+	"os"
 	"time"
 )
 
@@ -20,7 +22,21 @@ func handleConn(c net.Conn) {
 }
 
 func main() {
-	listener, err := net.Listen("tcp", "localhost:9090")
+
+	if len(os.Args) != 3 {
+		fmt.Println("Wrong number of parameters")
+		os.Exit(1)
+	}
+
+	args := os.Args
+
+	if args[1] != "-port" {
+		fmt.Println("Wrong flag, only supported the -port flag")
+	}
+
+	port := "localhost:" + args[2]
+
+	listener, err := net.Listen("tcp", port)
 	if err != nil {
 		log.Fatal(err)
 	}
