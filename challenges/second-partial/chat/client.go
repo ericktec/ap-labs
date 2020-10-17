@@ -7,20 +7,55 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"net"
 	"os"
 )
 
+var (
+	user string
+)
+
 //!+
 func main() {
-	conn, err := net.Dial("tcp", "localhost:8000")
+
+	var server string
+	if len(os.Args) == 5 {
+		if os.Args[1] == "-user" {
+			user = os.Args[2]
+		} else if os.Args[1] == "-server" {
+			server = os.Args[2]
+		} else {
+			fmt.Println("Wrong flag")
+			return
+		}
+
+		if os.Args[3] == "-user" {
+			user = os.Args[4]
+		} else if os.Args[3] == "-server" {
+			server = os.Args[4]
+		} else {
+			fmt.Println("Wrong flag")
+			return
+		}
+	} else {
+		fmt.Println("Error wrong arguments")
+		return
+	}
+
+	conn, err := net.Dial("tcp", server)
 	if err != nil {
+		log.Fatal(err)
+	}
+	_, e := io.WriteString(conn, user+"\n")
+	if e != nil {
 		log.Fatal(err)
 	}
 	done := make(chan struct{})
 	go func() {
+
 		io.Copy(os.Stdout, conn) // NOTE: ignoring errors
 		log.Println("done")
 		done <- struct{}{} // signal the main goroutine
@@ -36,4 +71,5 @@ func mustCopy(dst io.Writer, src io.Reader) {
 	if _, err := io.Copy(dst, src); err != nil {
 		log.Fatal(err)
 	}
+	fmt.Printf("%s > ", user)
 }
