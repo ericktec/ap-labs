@@ -116,6 +116,9 @@ func handleConn(conn net.Conn) {
 
 	for input.Scan() {
 		subCommand := strings.Split(input.Text(), " ")
+		if users[currentUser] == nil {
+			return
+		}
 
 		switch subCommand[0] {
 		case "/users":
@@ -153,8 +156,8 @@ func handleConn(conn net.Conn) {
 					temp := users[subCommand[1]]
 					if temp != nil {
 						temp.channel <- "irc-server > You're kicked from this channel"
-						messages <- "irc-server > [" + temp.username + "] was kicked from channel"
 						leaving <- temp.username
+						messages <- "irc-server > [" + temp.username + "] was kicked from channel"
 
 					} else {
 						ch <- "irc-server > Erro this user does not exist"
