@@ -66,7 +66,7 @@ func broadcaster() {
 func getUsers() string {
 	var temp string
 	for i := range users {
-		temp += "irc-server > " + users[i].username + "- connected since " + users[i].register + "\n"
+		temp += "irc-server > " + users[i].username + "- connected since " + users[i].register + ",		"
 	}
 	return temp
 }
