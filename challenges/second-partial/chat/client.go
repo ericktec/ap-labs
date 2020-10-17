@@ -7,6 +7,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"log"
@@ -55,7 +56,11 @@ func main() {
 	}
 	done := make(chan struct{})
 	go func() {
-
+		input := bufio.NewScanner(conn)
+		for input.Scan() {
+			fmt.Print("\n" + input.Text())
+			fmt.Print("\n" + user + " > ")
+		}
 		io.Copy(os.Stdout, conn) // NOTE: ignoring errors
 		log.Println("done")
 		done <- struct{}{} // signal the main goroutine

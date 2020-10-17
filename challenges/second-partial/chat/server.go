@@ -82,7 +82,7 @@ func handleConn(conn net.Conn) {
 	input.Scan()
 	currentUser := input.Text()
 	if users[currentUser] != nil {
-		ch <- "Erro that username is already registered"
+		ch <- "Error that username is already registered"
 		conn.Close()
 		return
 	} else if first {
@@ -115,10 +115,11 @@ func handleConn(conn net.Conn) {
 	entering <- currentUser
 
 	for input.Scan() {
-		subCommand := strings.Split(input.Text(), " ")
 		if users[currentUser] == nil {
 			return
 		}
+
+		subCommand := strings.Split(input.Text(), " ")
 
 		switch subCommand[0] {
 		case "/users":
@@ -156,11 +157,12 @@ func handleConn(conn net.Conn) {
 					temp := users[subCommand[1]]
 					if temp != nil {
 						temp.channel <- "irc-server > You're kicked from this channel"
+						fmt.Printf("irc-server > [%s] was kicked\n", temp.username)
 						leaving <- temp.username
 						messages <- "irc-server > [" + temp.username + "] was kicked from channel"
 
 					} else {
-						ch <- "irc-server > Erro this user does not exist"
+						ch <- "irc-server > Error this user does not exist"
 					}
 				}
 
@@ -173,10 +175,13 @@ func handleConn(conn net.Conn) {
 
 	}
 	// NOTE: ignoring potential errors from input.Err()
+	if users[currentUser] != nil {
+		messages <- users[currentUser].username + " has left"
+		fmt.Printf("irc-server > [%s] left\n", users[currentUser].username)
+		leaving <- currentUser
+		conn.Close()
+	}
 
-	leaving <- currentUser
-	messages <- users[currentUser].username + " has left"
-	conn.Close()
 }
 
 func clientWriter(conn net.Conn, ch <-chan string) {
