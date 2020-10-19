@@ -140,20 +140,20 @@ func handleConn(conn net.Conn) {
 			}
 
 		case "/msg":
-			temp := users[subCommand[1]]
-			output := users[currentUser].username + " (private):"
-			if temp != nil {
-				if len(subCommand) > 2 {
+			if len(subCommand) > 2 {
+				temp := users[subCommand[1]]
+				output := users[currentUser].username + " (private):"
+				if temp != nil {
+
 					for i := 2; i < len(subCommand); i++ {
 						output += " " + subCommand[i]
 					}
 					temp.channel <- output
 				} else {
-					ch <- "irc-server > Error missing parameters"
+					ch <- "irc-server > Error that user does not exist"
 				}
-
 			} else {
-				ch <- "irc-server > Error that user does not exist"
+				ch <- "irc-server > Error missing parameters"
 			}
 
 		case "/kick":
