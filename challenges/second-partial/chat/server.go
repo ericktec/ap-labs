@@ -128,12 +128,17 @@ func handleConn(conn net.Conn) {
 		case "/time":
 			ch <- "irc-server > Local Time: " + time.Now().Format(time.RFC850)
 		case "/user":
-			temp := users[subCommand[1]]
-			if temp != nil {
-				ch <- "irc-server > username: " + temp.username + ", IP: " + temp.ip + " Connected since: " + temp.register
+			if len(subCommand) == 2 {
+				temp := users[subCommand[1]]
+				if temp != nil {
+					ch <- "irc-server > username: " + temp.username + ", IP: " + temp.ip + " Connected since: " + temp.register
+				} else {
+					ch <- "irc-server > Error that user does not exist"
+				}
 			} else {
-				ch <- "irc-server > Error that user does not exist"
+				ch <- "irc-server > Error wrong parameters"
 			}
+
 		case "/msg":
 			temp := users[subCommand[1]]
 			output := users[currentUser].username + " (private):"
