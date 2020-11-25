@@ -23,31 +23,33 @@ import (
 
 */
 type Car struct {
-	id        int
-	positionX int
-	positionY int
-	maxSpeed  int
-	rank      int
-	laps      int
-	raceTime  string
-	finished  bool
-	//emoji     string
-	// "\U0001f3ce\ufe0f"
+	id           int
+	positionX    int
+	positionY    int
+	maxSpeed     int
+	rank         int
+	laps         int
+	raceTime     string
+	finished     bool
+	currentSpeed int
+	currentTime  float64
 }
 
 var laps int
 
 var players []Car
 
-var board [6][90]int
+var board [5][90]int
 
 var wg sync.WaitGroup
 
 var startTime time.Time
 
+var mu sync.RWMutex
+
 func main() {
 	// usage: ./grand-prix -players 20 -laps 78
-	rand.Seed(time.Now().UnixNano())
+
 	var lapsFlag = flag.Int("laps", 1, "Laps that game is going to run")
 	var numberPlayers = flag.Int("players", 3, "Players needed to run the game")
 	flag.Parse()
@@ -60,11 +62,11 @@ func main() {
 
 	var winners []int
 	close(ranks)
-	place := 1
+	// place := 1
 	for car := range ranks {
-		fmt.Printf(" El %d° puesto es %d\n", place, car.id)
+		// fmt.Printf(" El %d° puesto es %d\n", place, car.id)
 		winners = append(winners, car.id)
-		place++
+		// place++
 	}
 
 	printPodium(winners)
@@ -73,7 +75,11 @@ func main() {
 
 func addPlayers(numberPlayers int) {
 	var row, column int = -1, 0
+	min := 6
+	max := 12
 	for i := 0; i < numberPlayers; i++ {
+		rand.Seed(time.Now().UnixNano())
+
 		if (i % len(board)) == 0 {
 			row++
 			column = 0
@@ -81,12 +87,13 @@ func addPlayers(numberPlayers int) {
 		var newCar Car
 		newCar.id = i + 1
 		newCar.laps = 0
-		newCar.maxSpeed = rand.Intn(50) + 1
+		newCar.maxSpeed = rand.Intn(max-min) + min
 		newCar.rank = 0
 		newCar.positionX = row
 		newCar.positionY = column
 		newCar.finished = false
 		newCar.raceTime = ""
+		newCar.currentSpeed = 0
 		fmt.Println("Player ", i, "coordinates y:", column, "x: ", row)
 		board[column][row] = newCar.id
 		players = append(players, newCar)
@@ -98,32 +105,44 @@ func play(ranks chan Car) {
 	startTime = time.Now()
 	for !gameOver(ranks) {
 		for i := 0; i < len(players); i++ {
-			go carMovement(&players[i], ranks)
 			wg.Add(1)
+			go carMovement(&players[i], ranks)
 		}
 		time.Sleep(time.Second * 1)
+
 		wg.Wait()
-
+		currentTime := time.Since(startTime)
+		for i := 0; i < len(players); i++ {
+			if players[i].laps < laps {
+				players[i].raceTime = currentTime.String()
+				players[i].currentTime = currentTime.Seconds()
+			}
+		}
 		printGame()
-
 	}
 
 }
 
 func carMovement(car *Car, ranks chan Car) {
+	defer wg.Done()
 
 	// fmt.Printf("PLAYER %d -> LAPS: %d/%d POSITION: %d %d  SPEED:  TIME: %s \n", car.id, car.laps, laps, car.positionX, car.positionY, transitTime)
 	if !car.finished {
 		currentPositionX := car.positionX
 		currentPositionY := car.positionY
 		newPositionY := car.positionY
-		if board[car.positionY][(car.positionX+1)%(len(board[0])-1)] != 0 {
-			newPositionY = changeLane(currentPositionX, currentPositionY)
-		}
-		newPositionX := currentPositionX + rand.Intn(car.maxSpeed) + 1
+		car.currentSpeed = carAcceleration(car.currentSpeed, car.maxSpeed)
+		newPositionX := currentPositionX + car.currentSpeed
 
-		newPositionX = carCollision(currentPositionX, newPositionY, newPositionX)
+		mu.Lock()
+		newPositionX, newPositionY = carCollision(currentPositionX, currentPositionY, newPositionX)
+		car.currentSpeed = newPositionX - car.positionX
 
+		// if board[car.positionY][(newPositionX+1)%(len(board[0])-1)] != 0 {
+		// 	newPositionY = changeLane(currentPositionX, currentPositionY)
+		// }
+
+		mu.Unlock()
 		if newPositionX > (len(board[0]) - 1) {
 			if car.laps < laps {
 				car.laps++
@@ -132,41 +151,55 @@ func carMovement(car *Car, ranks chan Car) {
 			if car.laps == laps {
 				car.finished = true
 				if car.finished {
+					mu.Lock()
 					board[car.positionY][car.positionX] = 0
+					mu.Unlock()
 					car.positionX = -1
 					car.positionY = -1
+					car.rank = (car.laps * len(board[0]))
 					ranks <- *car
-					wg.Done()
 					return
 
 				}
 
 			}
 		}
-
+		mu.Lock()
 		board[currentPositionY][currentPositionX] = 0
+		board[newPositionY][newPositionX] = car.id
+		mu.Unlock()
+
 		car.positionX = newPositionX
 		car.positionY = newPositionY
-		if car.laps < laps {
-			car.raceTime = time.Since(startTime).String()
-		}
 
-		board[newPositionY][newPositionX] = car.id
+		car.rank = (car.laps * len(board[0])) + newPositionX
 
 	}
-	wg.Done()
 
 }
 
-func carCollision(currentPositionX int, currentPositionY int, newPositionX int) int {
+func carAcceleration(currentSpeed int, maxSpeed int) int {
+	if currentSpeed >= 0 && currentSpeed < maxSpeed-2 {
+		return currentSpeed + 1
+	}
+	min := maxSpeed - 2
+	max := maxSpeed
+	rand.Seed(time.Now().UnixNano())
+	return (rand.Intn(max-min) + min)
+
+}
+
+func carCollision(currentPositionX int, currentPositionY int, newPositionX int) (int, int) {
+	newPositionY := currentPositionY
 	for i := currentPositionX; i < newPositionX; i++ {
 
 		if board[currentPositionY][(i+1)%(len(board[0])-1)] != 0 {
 
-			return i
+			return i, changeLane(i, currentPositionY)
 		}
 	}
-	return newPositionX
+	return newPositionX, newPositionY
+
 }
 
 func changeLane(currentPositionX int, currentPositionY int) int {
@@ -282,32 +315,57 @@ func printPodium(winners []int) {
 }
 
 func calculatePositions() {
-	var positionsById []int
+	var positionsById []float64
+	actualTime := time.Since(startTime).Seconds()
 	for i := 0; i < len(players); i++ {
-		positionsById = append(positionsById, (players[i].laps*len(board[0]))+players[i].positionX)
+		if players[i].finished {
+			positionsById = append(positionsById, float64(players[i].rank)*(actualTime-players[i].currentTime))
+		} else {
+			positionsById = append(positionsById, float64(players[i].rank))
+		}
+
+		// 3 * 70 = 210 * 4.56 -> 957.6
+		// 3 * 70 = 210 * 8.56 -> 1797.6
+
+		// 30 segundos
+		// 3 * 70 = 210 * (30 - 4.56) -> 5342.4
+		// 3 * 70 = 210 * (30 - 8.56) -> 4502.4
+
+		// 2 * 56 = 112
 	}
-	sort.Ints(positionsById)
+	sort.Float64s(positionsById)
 	var realPositions []int
 	for i := 0; i < len(positionsById); i++ {
 		for j := 0; j < len(players); j++ {
-			if positionsById[i] == ((players[j].laps * len(board[0])) + players[j].positionX) {
-				realPositions = append(realPositions, j)
+
+			if players[j].finished {
+				if positionsById[i] == (float64(players[j].rank) * (actualTime - players[j].currentTime)) {
+					realPositions = append(realPositions, j)
+				}
+			} else {
+				if positionsById[i] == (float64(players[j].rank)) {
+					realPositions = append(realPositions, j)
+				}
 			}
+
 		}
 	}
 	realPositions = removeMultiple(realPositions)
 	var positionCounter int = 1
 	for i := len(players) - 1; i >= 0; i-- {
 		//fmt.Println(positionCounter, "° place, Player: ", realPositions[i])
+
 		transitTime := players[realPositions[i]].raceTime
+		speed := players[realPositions[i]].currentSpeed
 		playerID := realPositions[i]
 		playerLaps := players[realPositions[i]].laps
+
 		if (playerLaps + 1) > laps {
 			playerLaps = laps
 		} else {
 			playerLaps++
 		}
-		fmt.Printf("%d° place | PLAYER %d -> LAPS: %d/%d SPEED:  TIME: %s \n", positionCounter, playerID+1, playerLaps, laps, transitTime)
+		fmt.Printf("%d° PLACE | PLAYER %d -> LAPS: %d/%d SPEED: %d0Km/h  TIME: %s\n", positionCounter, playerID+1, playerLaps, laps, speed, transitTime)
 		positionCounter++
 
 	}
