@@ -195,7 +195,7 @@ func carCollision(currentPositionX int, currentPositionY int, newPositionX int) 
 
 		if board[currentPositionY][(i+1)%(len(board[0])-1)] != 0 {
 
-			return i, changeLane(i, currentPositionY)
+			return i, changeLane(i%(len(board[0])-1), currentPositionY)
 		}
 	}
 	return newPositionX, newPositionY
