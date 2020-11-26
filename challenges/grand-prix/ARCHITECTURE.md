@@ -30,6 +30,8 @@ Architecture
 
 The grand-prix game implemented is shown via terminal where we display all the players with their corresponding speed, time, laps and place in the race.
 
+See our promotional video at https://youtu.be/Kdz1_P6pqrk
+
 ![gran-prixUI](gran-prixUI.gif)
 
 The program workflow can be seen in the next diagrams where the one on the left is how does the main thread works.
