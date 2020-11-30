@@ -56,6 +56,10 @@ func main() {
 	laps = *lapsFlag
 	fmt.Println(" LAPS FLAG = ", *lapsFlag)
 	ranks := make(chan Car, *numberPlayers)
+	if *numberPlayers > 400 {
+		fmt.Printf("There are too many players for the map we are setting to 400 players")
+		*numberPlayers = 400
+	}
 	fmt.Printf(" Laps = %d, Racers = %d \n", laps, *numberPlayers)
 	addPlayers(*numberPlayers)
 	play(ranks)
